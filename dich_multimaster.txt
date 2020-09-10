@@ -1,0 +1,170 @@
+Báo cáo kỹ thuật này giới thiệu các khái niệm, vấn đề và giải pháp khả thi cho các hệ thống đa quản trị ROS, nghĩa là, các hệ thống xây dựng từ hai hoặc nhiều mạng ROS, mỗi mạng có nút roscore riêng. Nói chung, môi trường này sẽ tương ứng với các hệ thống nhiều robot, nền tảng di động hoặc người thao tác.
+Framework ROS đã cung cấp giải pháp cho các hệ thống như vậy, multimaster_fkie, được trình bày và mô tả ngắn gọn trong báo cáo kỹ thuật này, cùng với thiết lập mạng cần thiết để làm cho nó hoạt động bình thường.
+Hai cấu hình khác nhau được thảo luận trong báo cáo kỹ thuật này, mỗi mạng ROS đơn giản với một máy tính và các mạng ROS phức tạp hơn với hai hoặc nhiều máy tính. Trong cả hai trường hợp, các ví dụ thực tế được cung cấp bằng cách sử dụng rô bốt có sẵn tại IRI.
+
+1 introduction
+Trong khuôn khổ ROS, nói chung, mỗi rô bốt có mạng ROS riêng (có dây, không dây hoặc kết hợp cả hai), trong đó một roscore duy nhất quản lý tất cả thông tin liên lạc giữa tất cả các nút ROS, trong một máy tính hoặc nhiều máy tính trong cùng một mạng (tùy thuộc vào độ phức tạp và nhu cầu tính toán của hệ thống).
+Trong hinh 1: kết nối không dây đạt được nhờ bộ định tuyến không dây, nhưng cũng có thể đạt được bằng cách sử dụng máy tính để bàn có thẻ giao diện không dây.
+Khi nhiều rô bốt cần trao đổi thông tin, chủ yếu tồn tại hai giải pháp khả thi, tạo một mạng ROS lớn duy nhất được quản lý bởi một nút roscore duy nhất hoặc tạo cơ chế cho phép trao đổi thông tin giữa các hệ thống con ROS. Báo cáo kỹ thuật này tập trung vào phần sau, vì phần trước có thể dễ dàng thực hiện bằng các công cụ ROS phổ biến.
+Hinh 3: Phác thảo thiết lập phần cứng khả thi của nhiều hệ thống con ROS
+giao tiếp với nhau.
+Hinh 3 va 4 : cho cấu hình phần cứng và phần mềm khả thi tương ứng cho
+loại hệ thống này. Lưu ý rằng trong Hình 3, mạng chung có thể là mạng không dây (cho nền tảng di động), có dây (cho người thao tác tĩnh) hoặc kết hợp cả hai.
+Trong Hình 4, các đường liền nét màu đỏ biểu thị thông tin liên lạc giữa các nút trong các hệ thống con ROS khác nhau. Thông tin liên lạc có thể là chủ đề, dịch vụ hoặc hành động. Các đường màu đen liền mạch cho biết liên lạc địa phương.
+Khung ROS đã cung cấp một giải pháp cho các hệ thống đa tổng thể được gọi là multimaster_fkie, được trình bày trong phần 2.
+Ở đây, mô tả ngắn gọn về multimaster_fkie được trình bày. Để có mô tả chi tiết hơn về các tính năng và hoạt động của nút này, vui lòng kiểm tra trang web sau [2].
+Có thể dễ dàng cài đặt gói ROS tiêu chuẩn này dưới dạng gói debian cho phiên bản ROS của bạn, trong trường hợp này là Indigo.
+Hình 4: Khả năng kết nối với nhau của một số nút ROS trong một thiết lập với nhiều hệ thống con ROS, mỗi hệ thống có nút roscore riêng.
+Multimaster_fkie chủ yếu bao gồm hai nút: master_discovery và master_sync. Các tính năng chính của nút master_discovery được tóm tắt tiếp theo:
+•	Định kỳ gửi các bản tin đa hướng tới mạng chung để làm cho các ROS master  có thể khác nhận biết được sự hiện diện của nó, đồng thời phát hiện bất kỳ ROS master nào khác có sẵn.
+•	Kiểm tra roscore cục bộ để biết các thay đổi trong mạng cục bộ và thông báo cho tất cả các ROS master khác trong mạng chung về những thay đổi này.
+Các tính năng chính của nút master_sync được tóm tắt tiếp theo:
+•	Sử dụng thông tin được cung cấp cho các nút master_discovery khác để đăng ký các  topics and services từ xa với roscore cục bộ.
+•	Thông tin được cung cấp bởi các nút master_discovery từ xa cũng được sử dụng để cập nhật thông tin về các topics and services.
+•	Nó có thể được cấu hình để chọn máy chủ, chủ đề và dịch vụ để đồng bộ hóa hoặc bỏ qua. Theo mặc định, tất cả các chủ đề và dịch vụ của tất cả các máy chủ đều được đồng bộ hóa, vì vậy để giảm băng thông cần thiết, bạn chỉ nên đồng bộ hóa số lượng chủ đề và dịch vụ tối thiểu tuyệt đối.
+Nút master_sync chỉ đồng bộ hóa các chủ đề hoặc dịch vụ từ xa với roscore cục bộ. Để làm điều ngược lại, roscore từ xa phải có nút master_sync của riêng nó.
+Giải pháp multimaster_fkie chỉ hỗ trợ các chủ đề và dịch vụ, tuy nhiên các hành động được hỗ trợ ngầm vì chúng được xây dựng dựa trên 5 chủ đề. Máy chủ tham số của mỗi roscore không thể được truy cập từ xa
+Tương tự như những gì xảy ra trong hệ thống ROS tiêu chuẩn, khi các chủ đề, dịch vụ và / hoặc hành động được đăng ký trên các ROS sub-systems từ xa, một socket điểm tới điểm được tạo để kết nối trực tiếp hai hoặc nhiều nút và cơ chế đa chủ không được sử dụng cho đến khi có sự thay đổi trong cấu hình (nhà xuất bản / người đăng ký mới xuất hiện hoặc nhà xuất bản hiện có biến mất, v.v.).
+Cấu hình mạng cho mạng ROS một máy tính đơn giản hơn so với hệ thống nhiều máy tính, do đó nó được trình bày đầu tiên trong phần 3. Tiếp theo, các bước cấu hình bổ sung cần thiết để thiết lập đúng mạng ROS nhiều máy tính được trình bày trong phần 4.
+
+3 Single computer ROS networks
+Trong phần này, đầu tiên các yêu cầu cơ bản đối với thiết lập mạng sẽ được giới thiệu trong phần 3.1, và tiếp theo, quy trình từng bước sẽ được trình bày trong phần 3.2. Cuối cùng, trong phần 3.3, một số thử nghiệm cơ bản của khung multimaster_fkie được trình bày.
+Để rõ ràng, cấu hình hệ thống được hiển thị trong Hình 5 sẽ được sử dụng trong phần này để minh họa một số bước cấu hình.
+Hình 5: Thiết lập mạng đơn giản cho trường hợp mạng ROS máy tính đơn được sử dụng trong phần 3 để minh họa cấu hình mạng
+3.1 Network configuration
+Vì multimaster_fkie không hỗ trợ khởi chạy từ xa một nút ROS trên mạng ROS khác, nên không cần thiết phải trao đổi khóa công khai giữa máy tính trên các mạng ROS khác nhau để cho phép truy cập không cần mật khẩu vào các máy tính khác nhau.
+Tuy nhiên, nếu không có máy chủ DNS nào trên mạng để cung cấp ràng buộc giữa host names and their IP addresses, thì ràng buộc này phải được thực hiện sửa đổi thủ công the /etc/hosts file. Điều này là cần thiết để cho phép khuôn khổ ROS hoạt động đúng.
+Mỗi nút master_discovery gửi và nhận thông tin đến và từ các nút master_discovery khác trong cùng một mạng chung bằng cách sử dụng tính năng multicast. Ngày nay, hầu hết tất cả các bộ điều hợp mạng đều hỗ trợ tính năng này, tuy nhiên, trong hệ thống Ubuntu, nó bị tắt theo mặc định.
+Tính multicast feature rất quan trọng trong các hệ thống multi-master ROS dựa trên multimaster_fkie, bởi vì nếu không được bật, mặc dù thiết lập và hoạt động ban đầu có vẻ đúng, sau 10 phút hoặc lâu hơn, tất cả các kết nối liên mạng sẽ bị đóng.
+Bên cạnh việc kích hoạt multicast feature, cũng cần chọn một nhóm multicast address cho tất cả các máy tính sẽ được sử dụng cho bất kỳ nút master_discovery nào để thông báo các thay đổi cho các máy khác. Theo mặc định, địa chỉ 226.0.0.0 được sử dụng, nhưng nó có thể được thay đổi bằng cách sử dụng một tham số của nút.
+Sau khi các nút ROS cục bộ có thông tin về các nút từ xa được cung cấp bởi các nút master_discovery và master_sync, lưu lượng mạng dành cho các mạng từ xa phải được định tuyến đúng cách để cho phép giao tiếp giữa các nút trên các mạng ROS khác nhau.
+Điều này có thể dễ dàng đạt được bằng cách thêm các tuyến tĩnh vào bộ định tuyến, điểm truy cập hoặc máy tính được sử dụng để quản lý mạng chung. Tuy nhiên, để định tuyến lưu lượng đến đích mong muốn, mỗi máy tính phải có địa chỉ IP riêng và duy nhất của chúng. Trong một trường hợp máy tính đơn giản, đây có thể là một vấn đề, vì tất cả các mạng ROS cục bộ sẽ hoạt động trên địa chỉ localhost (127.0.0.1) theo mặc định.
+Giải pháp đơn giản nhất trong trường hợp này là sử dụng địa chỉ IP của mạng chung được gán cho mỗi máy tính làm biến ROS_MASTER_URI của chúng. Bằng cách đó, không cần thêm các tuyến tĩnh vì tất cả các máy tính đều chia sẻ cùng một giao diện mạng, mặc dù chúng đang sử dụng các nút roscore riêng biệt
+Khi mỗi mạng cục bộ có nhiều máy tính, giải pháp này không còn hiệu lực. Một giải pháp thay thế được trình bày sau trong phần 4.
+
+3.2 Step by step procedure
+Trong phần này, quy trình từng bước được trình bày để triển khai cấu hình được giải thích trong phần 3.1.
+Host name and IP address binding
+Đối với mỗi máy tính, hãy sửa đổi tệp / etc / hosts bằng trình soạn thảo văn bản yêu thích của bạn. Hình 6 cho thấy nội dung của tệp này cho máy tính kobuki1computer trong ví dụ được trình bày trong Hình 5.
+Để kiểm tra cấu hình phù hợp của mạng, trước khi khởi chạy bất kỳ nút ROS nào, hãy thử ping tất cả các máy tính khác từ bất kỳ máy tính nào, sử dụng cả tên máy chủ và địa chỉ IP. Nếu tất cả các ping trả về một phản hồi, mạng đã được cấu hình đúng.
+Change the ROS_MASTER_URI variable
+Đối với mỗi máy tính, để tạm thời thay đổi nội dung của biến này và chỉ trong bảng điều khiển hiện tại, hãy thực hiện lệnh sau, trong đó tên máy chủ hoặc địa chỉ IP phải là địa chỉ IP hoặc tên máy chủ của mỗi máy tính.
+export ROS_MASTER_URI=http://:11311
+Trong ví dụ được trình bày trong Hình 5, biến ROS_MASTER_URI trong mạng kobuki1 ROS nên được đặt thành kobuki1computer hoặc 192.168.1.229
+Để thực hiện thay đổi này vĩnh viễn, hãy chỉnh sửa tệp ~ / .bashrc bằng trình soạn thảo văn bản yêu thích của bạn và thêm lệnh trước đó vào cuối. Sau đó, đóng thiết bị đầu cuối và mở một thiết bị đầu cuối mới hoặc áp dụng các thay đổi bằng cách thực hiện lệnh sau:
+source ~/.bashrc
+
+Enable multicast
+Đối với tất cả các máy tính, trước tiên hãy kiểm tra xem tính năng phát đa hướng đã được bật chưa bằng lệnh sau.
+cat /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+Nếu lệnh này trả về 0, tính năng phát đa hướng đã được bật và bạn có thể chuyển sang phần tiếp theo. Để kích hoạt tạm thời tính năng phát đa hướng, hãy thực hiện lệnh sau, tuy nhiên, khi máy tính khởi động lại, cấu hình này sẽ bị mất.
+sudo sh -c "echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts"
+Để bật vĩnh viễn tính năng đa hướng, hãy chỉnh sửa tệp /etc/sysctl.conf và thêm dòng sau hoặc bỏ ghi chú, nếu nó đã tồn tại và thay đổi giá trị mặc định của nó.
+net.ipv4.icmp_echo_ignore_broadcasts=0
+Để các thay đổi có hiệu lực, hãy thực hiện lệnh sau:
+sudo service procps restart
+Để kiểm tra nhóm phát đa hướng nào đã được xác định trong máy tính, hãy thực hiện lệnh sau
+netstat –g
+Lệnh này sẽ báo cáo tất cả các địa chỉ IP được bật cho phát đa hướng cho từng giao diện mạng có sẵn, cả cho IPv4 và IPv6. Địa chỉ IP tiêu chuẩn cho multicast là 224.0.0.1, địa chỉ này sẽ xuất hiện trong danh sách được cung cấp bởi lệnh cuối cùng và đó là địa chỉ mà chúng tôi sẽ sử dụng.
+Tại thời điểm này, để kiểm tra xem tính năng phát đa hướng có hoạt động hay không, hãy thực hiện lệnh sau trên bất kỳ máy tính nào.
+ping 224.0.0.1
+Nếu mọi thứ được cấu hình đúng cách, bạn sẽ nhận được phản hồi từ mỗi máy tính trong mạng chung ở mỗi lần lặp.
+
+3.3 Testing
+Khi mạng đã được định cấu hình, đã đến lúc khởi chạy các nút multimaster_fkie và xem xét cách thức hoạt động của nó.
+Trước hết, khởi chạy một roscore cục bộ tại mỗi máy tính.
+Roscore
+Sau đó, khởi chạy nút master_discovery tại mỗi máy tính, chuyển tham số mcast_group làm đối số để chỉ định địa chỉ multicast sẽ được sử dụng.
+rosrun master_discovery_fkie master_discovery _mcast_group:=224.0.0.1
+Lệnh này sẽ báo cáo một số thông tin trên màn hình (xem Hình 7), nhưng không có gì khác xảy ra. Điều quan trọng cần lưu ý là nếu địa chỉ phát đa hướng được báo cáo được sử dụng là địa chỉ được cung cấp để đảm bảo mọi thứ được thiết lập đúng cách.
+Sau đó, khởi chạy nút master_sync trên mỗi máy tính. Không có bất kỳ tham số bổ sung nào, tất cả các chủ đề và dịch vụ trên tất cả các máy tính sẽ được đồng bộ hóa với tất cả các máy khác.
+rosrun master_sync_fkie master_sync
+Lưu ý rằng, trên mỗi máy tính, các máy tính khác đang chạy một nút master_discovery trong cùng một mạng chung sẽ tự động được phát hiện và sự khác biệt về dấu thời gian giữa chúng được báo cáo.
+Khi cả hai nút đang chạy trên tất cả các máy tính, việc thực hiện lệnh sau sẽ liệt kê tất cả các bản chính ROS có sẵn trên mạng chung. Hình 8 cho thấy thông tin được báo cáo bởi lệnh này cho hệ thống ví dụ được trình bày trong Hình 5
+rosservice call /master_discovery/list_masters
+Tại thời điểm này, mọi thứ được thiết lập để thử giao tiếp giữa hai mạng ROS. Để đơn giản, chúng tôi sẽ sử dụng lệnh rostopic pub và rostopic echo, nhưng bất kỳ tập hợp nút nào hiện có sẽ có thể hoạt động trên các mạng ROS khác nhau như chúng đã làm trong một mạng duy nhất.
+Nếu lệnh sau được thực thi trong một mạng ROS cục bộ, tất cả các máy tính khác sẽ có thể xem chủ đề bằng lệnh rostopic list và cũng có thể lấy nội dung của nó bằng lệnh rostopic echo.
+rostopic pub -r 1 /test std_msgs/Int32 1
+Ngoài ra, nút master_sync của tất cả các máy tính, cũng sẽ báo cáo khi ai đó đăng ký hoặc hủy đăng ký khỏi chủ đề đã xuất bản và cả khi một chủ đề mới được quảng cáo hoặc không được quảng cáo.
+Cuối cùng, lệnh rostopic info sẽ cho thấy rằng kết nối được thiết lập trực tiếp giữa nhà xuất bản và người đăng ký, và các nút master_discovery và master_sync không liên quan (xem Hình 9).
+
+4 Multiple computers ROS networks		
+Tất cả các khái niệm được giới thiệu trong phần 3 cũng có thể áp dụng cho trường hợp mạng ROS nhiều máy tính. Tuy nhiên, trong trường hợp này, các bước cấu hình bổ sung là cần thiết để cho phép tất cả các máy tính trong tất cả các mạng ROS cục bộ trao đổi thông tin.
+Để rõ ràng, cấu hình hệ thống được hiển thị trong Hình 10 sẽ được sử dụng trong phần này để minh họa một số bước cấu hình.
+Hình 9: Thông tin nhà xuất bản và người đăng ký về chủ đề đơn giản được sử dụng trong ví dụ này. Các nút master_discovery và master_sync không liên quan.
+
+4.1 Network configuration
+Trong cấu hình này, tất cả các máy tính trong mạng ROS cục bộ sẽ chia sẻ một mạng cục bộ, nhưng chỉ một máy tính (hoặc điểm truy cập hoặc bộ định tuyến) sẽ có quyền truy cập trực tiếp vào mạng chung cho hệ thống ROS nhiều chủ.
+Do đó, thiết bị có quyền truy cập vào cả hai mạng (cục bộ và chung) sẽ hoạt động như cổng kết nối giữa chúng. Có nghĩa là, tất cả lưu lượng cục bộ dành cho một máy tính trên mạng từ xa, trước tiên sẽ được định tuyến đến cổng cục bộ, sau đó đến cổng của mạng từ xa mong muốn và từ đó đến máy tính mong muốn trên mạng từ xa đó.
+Trong ví dụ được trình bày trong Hình 10, các máy tính tibi-visio, dabo-visio và car-visio hoạt động như các cổng cho mỗi mạng ROS cục bộ
+Để đạt được hành vi này, trước tiên cần thiết lập rõ ràng địa chỉ IP của thiết bị cổng trên mỗi máy tính của mạng ROS cục bộ, để lưu lượng truy cập từ xa sẽ được định tuyến đến đó. Thiết bị cổng cũng phải được định cấu hình để chuyển tiếp lưu lượng dành cho các mạng khác (thuộc tính ip_forward).
+Ngoài ra, trên thiết bị xử lý mạng chung (máy tính, bộ định tuyến hoặc điểm truy cập), cần phải thêm các tuyến tĩnh để định tuyến đúng lưu lượng đến mạng mong muốn.
+Như đã giải thích trong phần 3, giao tiếp trong ROS là điểm đến điểm giữa hai hoặc nhiều nút. Vì vậy, phải tồn tại một ràng buộc giữa địa chỉ IP và tên máy chủ cho tất cả các máy tính trong tất cả các mạng để khung ROS hoạt động bình thường
+Biến ROS_MASTER_URI có thể được đặt cho bất kỳ máy tính nào bên trong mạng ROS cục bộ, nó không cần phải là máy tính có quyền truy cập vào mạng chung.
+
+4.2 Step by step procedure
+Trong phần này, quy trình từng bước được trình bày để triển khai cấu hình được giải thích trong phần 4.1. Một số bước từ phần 3.2 được lặp lại ở đây với ít hoặc không có thay đổi nào cho rõ ràng.
+Change the ROS_MASTER_URI variable
+Đối với tất cả các máy tính trên mạng ROS cục bộ và đối với tất cả các mạng ROS, hãy thực thi lệnh sau để thực hiện các thay đổi chỉ tạm thời, trong đó tên máy chủ hoặc địa chỉ IP phải là địa chỉ IP hoặc tên máy chủ của máy tính được chọn để thực thi nút roscore.
+export ROS_MASTER_URI=http://<hostname or IP address>:11311
+Trong ví dụ được trình bày trong Hình 10, biến ROS_MASTER_URI cho tất cả các máy tính trong mạng dabo ROS có thể được đặt, ví dụ, thành 192.168.10.101 hoặc dabo-vis.
+Hình 10: Thiết lập mạng cho trường hợp mạng ROS nhiều máy tính được sử dụng trong phần 4 để minh họa cấu hình mạng
+Để thực hiện thay đổi này vĩnh viễn, hãy chỉnh sửa tệp ~ / .bashrc bằng trình soạn thảo văn bản yêu thích của bạn và thêm lệnh trước đó vào cuối. Sau đó, đóng thiết bị đầu cuối và mở một thiết bị đầu cuối mới hoặc áp dụng các thay đổi bằng cách thực hiện lệnh sau:
+source ~/.bashrc
+
+Set the default gateway
+Đối với tất cả các máy tính trên mạng ROS cục bộ (ngoại trừ máy tính hoạt động như cổng vào) và tất cả các mạng ROS, hãy thực hiện như sau. Để tạm thời đặt cổng mặc định, hãy thực hiện lệnh sau, trong đó địa chỉ IP là địa chỉ IP của thiết bị hoạt động như cổng.
+route add default gw
+Nếu có nhiều giao diện mạng, cần phải nối dev <interface> vào lệnh trước đó, nơi interface là giao diện mạng mà máy tính hiện tại được kết nối với cổng.
+Để thực hiện thay đổi này vĩnh viễn, cần tạo một tập lệnh đơn giản sẽ được thực thi bất cứ khi nào giao diện mạng mong muốn được hiển thị. Trong thư mục /etc/network/if-up.d/, tạo một tệp mới (với bất kỳ tên nào bạn muốn) và thêm mã hiển thị trong Hình 11. Khi hoàn tất,
+thêm quyền thực thi vào tệp để nó có thể được gọi bất cứ khi nào cần thiết.
+Hình 11: Tập lệnh đơn giản để đặt địa chỉ IP của cổng mặc định trên mạng
+Trong hình 11, giao diện đề cập đến giao diện mạng (eth0, wlan0, v.v.) qua đó máy tính hiện tại được kết nối với cổng và địa chỉ IP cổng là địa chỉ IP của thiết bị cổng.
+Lưu ý rằng với tập lệnh này, không cần thiết phải nối thêm dev <interface>, vì giao diện đã được chỉ định làm điều kiện để thực thi lệnh.
+
+Enable ip_forward on the gateway
+Chỉ dành cho máy tính hoạt động với tư cách là cổng vào từng mạng ROS cục bộ, trước tiên hãy kiểm tra xem tính năng chuyển tiếp IP có được bật hay không bằng cách sử dụng lệnh sau.
+cat /proc/sys/net/ipv4/ip_forward
+Nếu lệnh này trả về 1, chuyển tiếp IP được bật và bạn có thể chuyển sang phần tiếp theo. Để kích hoạt tạm thời tính năng này, hãy thực hiện lệnh sau, tuy nhiên, khi máy tính khởi động lại, cấu hình này sẽ bị mất.
+sudo sh -c "echo 1 >/proc/sys/net/ipv4/ip_forward"
+Để bật vĩnh viễn tính năng chuyển tiếp IP, hãy chỉnh sửa tệp /etc/sysctl.conf và thêm dòng sau hoặc bỏ ghi chú nếu nó đã tồn tại và thay đổi giá trị mặc định của nó.
+net.ipv4.ip_forward=1
+Để các thay đổi có hiệu lực, hãy thực hiện lệnh sau:
+sudo service procps restart
+
+Add static routes between networks
+Chỉ đối với thiết bị quản lý mạng chung, hãy làm như sau. Trong trường hợp sử dụng máy tính để bàn chạy Linux, hãy thực hiện lệnh sau:
+route add -net netmask 255.255.255.0 gw
+Trong đó mạng cục bộ là bất kỳ miền nào của mạng ROS cục bộ,  và cổng mạng chung là địa chỉ IP, trên mạng chung, của máy tính hoạt động như cổng cho mạng ROS cục bộ tương ứng.
+Từ ví dụ được trình bày trong Hình 10, lệnh để định tuyến đúng bất kỳ lưu lượng nào dành cho mạng Tibi ROS, sẽ là:
+route add -net 192.168.11.0 netmask 255.255.255.0 gw 192.168.1.201
+Đối với bộ định tuyến hoặc điểm truy cập, ý tưởng chính vẫn giống nhau, nhưng các chi tiết cụ thể sẽ phụ thuộc vào nhà sản xuất và kiểu máy của thiết bị. Kiểm tra trợ giúp của sản phẩm để định cấu hình đúng định tuyến lưu lượng
+
+Enable multicast
+Đối với tất cả các máy tính trên mạng ROS cục bộ và đối với tất cả các mạng ROS, trước tiên hãy kiểm tra xem tính năng phát đa hướng có được bật hay không bằng cách sử dụng lệnh sau.
+cat /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+Nếu lệnh này trả về 0, tính năng phát đa hướng đã được bật và bạn có thể chuyển sang phần tiếp theo. Để kích hoạt tạm thời tính năng phát đa hướng, hãy thực hiện lệnh sau, tuy nhiên, khi máy tính khởi động lại, cấu hình này sẽ bị mất.
+sudo sh -c "echo 0 >/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts"
+Để bật vĩnh viễn tính năng đa hướng, hãy chỉnh sửa tệp /etc/sysctl.conf và thêm dòng sau hoặc bỏ ghi chú, nếu nó đã tồn tại và thay đổi giá trị mặc định của nó.
+net.ipv4.icmp_echo_ignore_broadcasts=0
+Để các thay đổi có hiệu lực, hãy thực hiện lệnh sau:
+sudo service procps restart
+Để kiểm tra nhóm phát đa hướng nào đã được xác định trong máy tính, hãy thực hiện lệnh sau.
+netstat –g
+Lệnh này sẽ báo cáo tất cả các địa chỉ IP được bật cho phát đa hướng cho từng giao diện mạng có sẵn, cả cho IPv4 và IPv6. Địa chỉ IP tiêu chuẩn cho multicast là 224.0.0.1, địa chỉ này sẽ xuất hiện trong danh sách được cung cấp bởi lệnh cuối cùng và đó là địa chỉ mà chúng tôi sẽ sử dụng.
+Tại thời điểm này, để kiểm tra xem tính năng phát đa hướng có hoạt động hay không, hãy thực hiện lệnh sau trên bất kỳ máy tính nào.
+ping 224.0.0.1
+Nếu mọi thứ được cấu hình đúng cách, bạn sẽ nhận được phản hồi từ mỗi máy tính trong mạng chung ở mỗi lần lặp.
+
+Host name and IP address binding
+Đối với tất cả các máy tính trên mạng ROS cục bộ và đối với tất cả các mạng ROS, hãy sửa đổi tệp / etc / hosts bằng trình soạn thảo văn bản yêu thích của bạn. Hình 12 cho thấy nội dung của tệp này cho máy tính tibi-monitor trong ví dụ được trình bày trong Hình 10.
+Để kiểm tra cấu hình thích hợp của mạng, trước khi khởi chạy bất kỳ nút ROS nào, hãy thử ping tất cả các máy tính khác từ bất kỳ máy tính nào, sử dụng cả tên máy chủ và địa chỉ IP. Nếu tất cả các ping trả về một phản hồi, mạng đã được cấu hình đúng. Nếu không, hãy xem lại các bước được liệt kê trước đó.
+
+4.3 Testing
+Hoạt động của multimaster_fkie với nhiều mạng ROS máy tính hoàn toàn giống với các mạng ROS máy tính đơn lẻ. Vì vậy, hãy tham khảo phần 3.3 để kiểm tra xem mạng đã được cấu hình đúng hay chưa.
+Sự khác biệt duy nhất là, trong trường hợp này, giao tiếp có thể thực hiện được giữa hai máy tính bất kỳ trên hai mạng ROS bất kỳ.
+
+5 Conclusions
+Trang web tài liệu multimaster_fkie khá đầy đủ về cấu hình và hoạt động của các nút, nhưng nó đưa ra rất ít hoặc không đưa ra nhận xét về cách thiết lập hệ thống để hệ thống đa chủ hoạt động bình thường. Đây là lý do chính tại sao tài liệu này đã được viết
+Mặc dù hoạt động của khung này khá tốt đối với các kết nối có dây, nhưng hiệu suất của nó sẽ giảm nhanh chóng khi sử dụng giao diện không dây do các vấn đề về nguồn và nhiễu. Điều này không liên quan gì đến bản thân framework, nhưng cần đặc biệt lưu ý khi sử dụng kết nối không dây.
+So với các phiên bản trước của các giải pháp đa tổng thể trong ROS, phiên bản được trình bày trong tài liệu này thể hiện một số ưu điểm: sử dụng đơn giản, vì người dùng chỉ phải chọn thông tin để chia sẻ và cập nhật định kỳ, giúp mạng cục bộ được đồng bộ hóa với toàn cầu thông tin mạng.
